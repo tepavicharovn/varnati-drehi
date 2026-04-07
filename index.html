@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Върнати дрехи — FitnessWear</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb;color:#111;font-size:14px}
+.wrap{max-width:860px;margin:0 auto;padding:1rem}
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:8px}
+h2{font-size:16px;font-weight:600}
+.sub{font-size:11px;color:#6b7280;margin-top:2px}
+.save-ind{font-size:11px;color:#9ca3af}
+.tabs{display:flex;border-bottom:1px solid #e5e7eb;margin-bottom:1.25rem;overflow-x:auto}
+.tab{padding:10px 16px;cursor:pointer;font-size:13px;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:all 0.15s}
+.tab.active{color:#111;border-bottom-color:#111;font-weight:500}
+.panel{display:none}.panel.active{display:block}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem}
+label{font-size:12px;color:#6b7280;display:block;margin-bottom:4px}
+input[type=text],input[type=number],select{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;background:#fff;color:#111;font-family:inherit}
+input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border-color:#6b7280}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid #d1d5db;background:#fff;color:#111;transition:all 0.15s;font-family:inherit}
+.btn:hover{background:#f3f4f6}
+.btn:active{transform:scale(0.98)}
+.btn-primary{background:#111;color:#fff;border-color:transparent}
+.btn-primary:hover{background:#374151}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-danger{color:#dc2626;border-color:#fca5a5}
+.btn-danger:hover{background:#fef2f2}
+.row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.grow{flex:1;min-width:120px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem}
+.stat{text-align:center;background:#f3f4f6;border-radius:8px;padding:12px 8px}
+.stat-num{font-size:22px;font-weight:600}
+.stat-lbl{font-size:11px;color:#6b7280;margin-top:2px}
+.stock-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6}
+.stock-item:last-child{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:500}
+.badge-ok{background:#dcfce7;color:#166534}
+.badge-no{background:#fee2e2;color:#991b1b}
+.badge-warn{background:#fef9c3;color:#854d0e}
+.badge-qty{background:#f3f4f6;color:#374151}
+.result-box{border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid}
+.result-box.found{background:#f0fdf4;border-color:#86efac}
+.result-box.missing{background:#fef2f2;border-color:#fca5a5}
+.result-box.other{background:#fefce8;border-color:#fde047}
+.info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:13px;color:#1e40af;margin-bottom:1rem;line-height:1.6}
+.scan-input{font-size:18px;padding:12px 16px;border:2px solid #d1d5db;border-radius:12px;width:100%;font-family:monospace}
+.scan-input:focus{border-color:#111;outline:none}
+.ac-wrap{position:relative}
+.ac-drop{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;z-index:100;max-height:220px;overflow-y:auto;margin-top:2px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+.ac-item{padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.sel{background:#f9fafb}
+.filter-row{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.filter-btn{padding:4px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid #e5e7eb;background:#f3f4f6;color:#6b7280}
+.filter-btn.active-f{background:#111;color:#fff;border-color:transparent}
+.other-size-btn{display:inline-block;padding:4px 12px;margin:3px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #fde047;background:#fff;color:#854d0e}
+.other-size-btn:hover{background:#fefce8}
+.feedback{font-size:13px;min-height:18px;margin-top:6px;color:#16a34a}
+.hist-item{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.hist-item:last-child{border-bottom:none}
+.empty{text-align:center;color:#9ca3af;padding:2rem 0;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hdr">
+  <div>
+    <h2>Склад върнати дрехи</h2>
+    <div class="sub" id="hdr-info">FitnessWear.ro</div>
+  </div>
+  <div class="save-ind" id="save-ind"></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('scan-in')">Завеждане</div>
+  <div class="tab" onclick="switchTab('scan-check')">Проверка</div>
+  <div class="tab" onclick="switchTab('stock')">Наличност</div>
+  <div class="tab" onclick="switchTab('setup')">Настройки</div>
+</div>
+
+<!-- ЗАВЕЖДАНЕ -->
+<div id="tab-scan-in" class="panel active">
+  <div class="info-box">Сканирай баркода от стоковата разписка на върнатата пратка. Артикулът се добавя автоматично в склада.</div>
+  <div class="card">
+    <label>Сканирай баркод — полето трябва да е активно</label>
+    <input class="scan-input" type="text" id="scan-in-input" placeholder="Сканирай или въведи баркод..." onkeydown="onScanInKey(event)" autofocus autocomplete="off">
+    <div class="feedback" id="scan-in-feedback"></div>
+  </div>
+  <div id="scan-in-history" style="display:none">
+    <h3 style="font-size:13px;font-weight:500;margin-bottom:8px;color:#6b7280">Добавени в тази сесия</h3>
+    <div id="scan-in-list"></div>
+  </div>
+</div>
+
+<!-- ПРОВЕРКА -->
+<div id="tab-scan-check" class="panel">
+  <div class="info-box">Сканирай баркодовете от стоковата разписка на новата поръчка. Системата проверява дали артикулът е наличен при върнатите.</div>
+  <div class="card">
+    <label>Сканирай баркод от новата поръчка</label>
+    <input class="scan-input" type="text" id="scan-check-input" placeholder="Сканирай или въведи баркод..." onkeydown="onScanCheckKey(event)" autocomplete="off">
+    <div class="feedback" id="scan-check-feedback"></div>
+  </div>
+  <div id="check-result"></div>
+  <div id="check-history" style="display:none;margin-top:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h3 style="font-size:13px;font-weight:500;color:#6b7280">Проверени в тази сесия</h3>
+      <button class="btn btn-sm" onclick="clearCheckHistory()">Изчисти</button>
+    </div>
+    <div id="check-history-list"></div>
+  </div>
+</div>
+
+<!-- НАЛИЧНОСТ -->
+<div id="tab-stock" class="panel">
+  <div class="grid3">
+    <div class="stat"><div class="stat-num" id="stat-products">0</div><div class="stat-lbl">артикула</div></div>
+    <div class="stat"><div class="stat-num" id="stat-items">0</div><div class="stat-lbl">бр. общо</div></div>
+    <div class="stat"><div class="stat-num" id="stat-types">0</div><div class="stat-lbl">вида</div></div>
+  </div>
+  <input type="text" id="stock-search" placeholder="Търси по ime или баркод..." style="margin-bottom:10px" oninput="renderStock()">
+  <div class="filter-row" id="type-filters"></div>
+  <div id="stock-list"></div>
+  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f3f4f6">
+    <button class="btn btn-danger btn-sm" onclick="clearStock()">Изчисти цялата наличност</button>
+  </div>
+</div>
+
+<!-- НАСТРОЙКИ -->
+<div id="tab-setup" class="panel">
+  <div class="info-box">
+    Качи CSV от Shopify Admin → Products → Export → "Export as CSV for Excel".<br>
+    Системата зарежда всички продукти с баркодовете им. Прави се еднократно.
+  </div>
+  <div class="card">
+    <label>Качи Products CSV от Shopify</label>
+    <input type="file" id="csv-file" accept=".csv" onchange="loadCSV(event)" style="padding:6px">
+    <div id="csv-status" style="margin-top:8px;font-size:13px"></div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:13px;font-weight:500;margin-bottom:8px">Ръчно добавяне към склада <span style="font-size:11px;color:#9ca3af">— за начална инвентаризация</span></h3>
+    <div class="ac-wrap" style="margin-bottom:10px">
+      <label>Търси продукт по ime</label>
+      <input type="text" id="manual-search" placeholder="напр. Chicago, Hanorace..." oninput="onManualInput()" onkeydown="onManualKey(event)" autocomplete="off">
+      <div class="ac-drop" id="manual-drop" style="display:none"></div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="grow">
+        <label>Избран продукт</label>
+        <input type="text" id="manual-selected" readonly placeholder="Избери от търсенето..." style="background:#f9fafb">
+      </div>
+    </div>
+    <div class="row">
+      <div class="grow">
+        <label>Размер</label>
+        <select id="manual-size-select" style="display:none"></select>
+        <input type="text" id="manual-size-text" placeholder="Избери продукт първо..." readonly style="background:#f9fafb;display:block">
+      </div>
+      <div><label>Брой</label><input type="number" id="manual-qty" value="1" min="1" style="width:70px"></div>
+      <div><button class="btn btn-primary" style="margin-top:18px" onclick="addManual()">Добави</button></div>
+    </div>
+    <div class="feedback" id="manual-feedback"></div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:13px;font-weight:500;margin-bottom:6px">Каталог (<span id="catalog-count">0</span> варианта)</h3>
+    <div id="catalog-preview" style="max-height:150px;overflow-y:auto;font-size:12px;color:#6b7280"></div>
+  </div>
+</div>
+</div>
+
+<script>
+let catalog=[];
+let stock={};
+let scanInHistory=[];
+let checkHistory=[];
+let manualMatches=[];
+let manualAcIndex=-1;
+let selectedProduct=null;
+let typeFilter='all';
+
+function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+function init(){
+  stock=lsGet('fw_stock')||{};
+  catalog=lsGet('fw_catalog')||[];
+  updateStats();renderStock();renderTypeFilters();updateCatalogInfo();
+  document.getElementById('scan-in-input').focus();
+}
+
+function saveStock(){
+  lsSet('fw_stock',stock);
+  document.getElementById('save-ind').textContent='Запазено '+new Date().toLocaleTimeString('bg-BG',{hour:'2-digit',minute:'2-digit'});
+}
+
+function parseCSVLine(line){
+  const result=[];let current='';let inQ=false;
+  for(let i=0;i<line.length;i++){
+    if(line[i]==='"')inQ=!inQ;
+    else if(line[i]===','&&!inQ){result.push(current);current='';}
+    else current+=line[i];
+  }
+  result.push(current);
+  return result;
+}
+
+function loadCSV(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const lines=ev.target.result.split('\n');
+    if(lines.length<2){document.getElementById('csv-status').textContent='Грешка: файлът е празен.';return;}
+    const header=lines[0].split(',').map(h=>h.trim().replace(/"/g,'').toLowerCase());
+    const titleIdx=header.findIndex(h=>h==='title');
+    const variantIdx=header.findIndex(h=>h.includes('variant title'));
+    const barcodeIdx=header.findIndex(h=>h==='variant barcode'||h==='barcode');
+    const skuIdx=header.findIndex(h=>h==='variant sku'||h==='sku');
+    if(titleIdx<0||barcodeIdx<0){
+      document.getElementById('csv-status').innerHTML='<span style="color:#dc2626">Не намерих нужните колони. Провери че е Shopify Products CSV.</span>';
+      return;
+    }
+    const newCatalog=[];
+    let currentTitle='';
+    for(let i=1;i<lines.length;i++){
+      const cols=parseCSVLine(lines[i]);
+      if(cols.length<=barcodeIdx)continue;
+      const title=(cols[titleIdx]||'').replace(/"/g,'').trim();
+      if(title)currentTitle=title;
+      const variant=variantIdx>=0?(cols[variantIdx]||'').replace(/"/g,'').trim():'';
+      const barcode=(cols[barcodeIdx]||'').replace(/"/g,'').trim();
+      if(currentTitle&&barcode)newCatalog.push({title:currentTitle,variant,barcode});
+    }
+    catalog=newCatalog;
+    lsSet('fw_catalog',catalog);
+    updateCatalogInfo();
+    document.getElementById('csv-status').innerHTML='<span style="color:#16a34a">Заредени '+catalog.length+' варианта от '+new Set(catalog.map(c=>c.title)).size+' продукта!</span>';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function updateCatalogInfo(){
+  const count=catalog.length;
+  document.getElementById('catalog-count').textContent=count;
+  document.getElementById('hdr-info').textContent=count>0?count+' варианта заредени':'Няма заредени продукти — виж Настройки';
+  const prev=document.getElementById('catalog-preview');
+  if(!count){prev.innerHTML='<div style="padding:8px 0;color:#9ca3af">Няма заредени продукти</div>';return;}
+  prev.innerHTML=catalog.slice(0,50).map(c=>'<div style="padding:3px 0;border-bottom:1px solid #f3f4f6">'+c.title+' '+c.variant+' <span style="color:#9ca3af">'+c.barcode+'</span></div>').join('')+(catalog.length>50?'<div style="padding:4px 0;color:#9ca3af">...и още '+(catalog.length-50)+'</div>':'');
+}
+
+function findByBarcode(b){return catalog.find(c=>c.barcode===b||c.barcode===b.trim());}
+function findSameProduct(title){return catalog.filter(c=>c.title===title);}
+
+function onScanInKey(e){
+  if(e.key==='Enter'){
+    const val=document.getElementById('scan-in-input').value.trim();
+    if(!val)return;
+    processAddBarcode(val);
+    document.getElementById('scan-in-input').value='';
+  }
+}
+
+function processAddBarcode(barcode){
+  const item=findByBarcode(barcode);
+  if(!item){
+    document.getElementById('scan-in-feedback').innerHTML='<span style="color:#dc2626">Баркод "'+barcode+'" не е намерен в каталога.</span>';
+    return;
+  }
+  if(stock[barcode])stock[barcode].qty++;
+  else stock[barcode]={title:item.title,variant:item.variant,barcode,qty:1};
+  saveStock();updateStats();renderStock();renderTypeFilters();
+  scanInHistory.unshift({title:item.title,variant:item.variant,time:new Date().toLocaleTimeString('bg-BG',{hour:'2-digit',minute:'2-digit'})});
+  renderScanInHistory();
+  document.getElementById('scan-in-feedback').innerHTML='<span style="color:#16a34a">✓ Добавено: '+item.title+' '+item.variant+'</span>';
+  setTimeout(()=>document.getElementById('scan-in-feedback').textContent='',2000);
+}
+
+function renderScanInHistory(){
+  const el=document.getElementById('scan-in-history');
+  const list=document.getElementById('scan-in-list');
+  if(!scanInHistory.length){el.style.display='none';return;}
+  el.style.display='block';
+  list.innerHTML=scanInHistory.slice(0,20).map(i=>'<div class="hist-item"><span>'+i.title+' <span style="color:#6b7280">'+i.variant+'</span></span><span style="color:#9ca3af;font-size:12px">'+i.time+'</span></div>').join('');
+}
+
+function onScanCheckKey(e){
+  if(e.key==='Enter'){
+    const val=document.getElementById('scan-check-input').value.trim();
+    if(!val)return;
+    processCheckBarcode(val);
+    document.getElementById('scan-check-input').value='';
+  }
+}
+
+function processCheckBarcode(barcode){
+  const item=findByBarcode(barcode);
+  if(!item){
+    document.getElementById('check-result').innerHTML='<div class="result-box missing"><div style="font-size:15px;font-weight:600;color:#991b1b">Баркод не е намерен в каталога</div><div style="font-size:12px;color:#991b1b;margin-top:4px">'+barcode+'</div></div>';
+    return;
+  }
+  const inStock=stock[barcode]&&stock[barcode].qty>0;
+  const allVariants=findSameProduct(item.title);
+  const otherAvailable=allVariants.filter(v=>v.barcode!==barcode&&stock[v.barcode]&&stock[v.barcode].qty>0);
+  let html='';
+  if(inStock){
+    html='<div class="result-box found"><div style="font-size:15px;font-weight:600;color:#166534">НАЛИЧНО — вземи от склада</div><div style="font-size:13px;color:#166534;margin-top:4px">'+item.title+'</div><div style="font-size:12px;color:#166534;margin-top:2px">'+item.variant+' · '+stock[barcode].qty+' бр. налични</div><button class="btn btn-sm" style="margin-top:10px" onclick="useItem(\''+barcode+'\')">Използвай 1 бр.</button></div>';
+  } else {
+    html='<div class="result-box missing"><div style="font-size:15px;font-weight:600;color:#991b1b">НЯМА — пусни принтера</div><div style="font-size:13px;color:#991b1b;margin-top:4px">'+item.title+'</div><div style="font-size:12px;color:#991b1b;margin-top:2px">'+item.variant+'</div></div>';
+  }
+  if(otherAvailable.length>0){
+    html+='<div class="result-box other"><div style="font-size:13px;font-weight:500;color:#854d0e;margin-bottom:8px">Същият модел е наличен в друг размер — можеш ли да го замениш?</div>'+otherAvailable.map(v=>'<span class="other-size-btn" onclick="useItem(\''+v.barcode+'\');this.style.opacity=\'0.4\'">'+v.variant+' · '+stock[v.barcode].qty+' бр.</span>').join('')+'</div>';
+  }
+  document.getElementById('check-result').innerHTML=html;
+  checkHistory.unshift({title:item.title,variant:item.variant,found:inStock,otherSizes:otherAvailable.length,time:new Date().toLocaleTimeString('bg-BG',{hour:'2-digit',minute:'2-digit'})});
+  renderCheckHistory();
+  document.getElementById('scan-check-input').focus();
+}
+
+function useItem(barcode){
+  if(stock[barcode]){
+    stock[barcode].qty--;
+    if(stock[barcode].qty<=0)delete stock[barcode];
+    saveStock();updateStats();renderStock();renderTypeFilters();
+  }
+  document.getElementById('check-result').innerHTML='<div style="font-size:13px;color:#16a34a;padding:8px 0">✓ Използван — сканирай следващ</div>';
+  setTimeout(()=>document.getElementById('check-result').innerHTML='',1500);
+}
+
+function renderCheckHistory(){
+  const el=document.getElementById('check-history');
+  const list=document.getElementById('check-history-list');
+  if(!checkHistory.length){el.style.display='none';return;}
+  el.style.display='block';
+  list.innerHTML=checkHistory.slice(0,30).map(i=>'<div class="hist-item"><div><span>'+i.title+' <span style="color:#6b7280">'+i.variant+'</span></span>'+(i.otherSizes>0?'<span class="badge badge-warn" style="font-size:10px;margin-left:6px">+'+i.otherSizes+' др. размер</span>':'')+'</div><div style="display:flex;gap:8px;align-items:center"><span class="badge '+(i.found?'badge-ok':'badge-no')+'">'+(i.found?'НАЛИЧНО':'ПЕЧАТИ')+'</span><span style="color:#9ca3af;font-size:11px">'+i.time+'</span></div></div>').join('');
+}
+
+function clearCheckHistory(){checkHistory=[];document.getElementById('check-history').style.display='none';document.getElementById('check-result').innerHTML='';}
+
+function onManualInput(){
+  const val=document.getElementById('manual-search').value.toLowerCase().trim();
+  const drop=document.getElementById('manual-drop');
+  manualAcIndex=-1;
+  if(val.length<2){drop.style.display='none';return;}
+  const titles=[...new Set(catalog.filter(c=>c.title.toLowerCase().includes(val)).map(c=>c.title))].slice(0,10);
+  if(!titles.length){drop.style.display='none';return;}
+  manualMatches=titles;
+  drop.innerHTML=titles.map((t,i)=>'<div class="ac-item" data-i="'+i+'" onmousedown="pickManual('+i+')">'+t+'</div>').join('');
+  drop.style.display='block';
+}
+
+function onManualKey(e){
+  const drop=document.getElementById('manual-drop');
+  if(drop.style.display==='none')return;
+  if(e.key==='ArrowDown'){e.preventDefault();manualAcIndex=Math.min(manualAcIndex+1,manualMatches.length-1);highlightManual();}
+  else if(e.key==='ArrowUp'){e.preventDefault();manualAcIndex=Math.max(manualAcIndex-1,-1);highlightManual();}
+  else if((e.key==='Enter'||e.key==='Tab')&&manualAcIndex>=0){e.preventDefault();pickManual(manualAcIndex);}
+  else if(e.key==='Escape')drop.style.display='none';
+}
+function highlightManual(){document.querySelectorAll('#manual-drop .ac-item').forEach((el,i)=>el.classList.toggle('sel',i===manualAcIndex));}
+
+function pickManual(i){
+  const title=manualMatches[i];
+  document.getElementById('manual-search').value=title;
+  document.getElementById('manual-selected').value=title;
+  document.getElementById('manual-drop').style.display='none';
+  const variants=catalog.filter(c=>c.title===title);
+  selectedProduct={title,variants};
+  const sel=document.getElementById('manual-size-select');
+  sel.innerHTML=variants.map(v=>'<option value="'+v.barcode+'">'+(v.variant||'Стандартен')+'</option>').join('');
+  sel.style.display='block';
+  document.getElementById('manual-size-text').style.display='none';
+  document.getElementById('manual-qty').focus();
+}
+
+function addManual(){
+  const sel=document.getElementById('manual-size-select');
+  const barcode=sel.value;
+  if(!barcode||!selectedProduct){document.getElementById('manual-feedback').textContent='Избери продукт първо';return;}
+  const qty=parseInt(document.getElementById('manual-qty').value)||1;
+  const variant=catalog.find(c=>c.barcode===barcode);
+  if(!variant)return;
+  if(stock[barcode])stock[barcode].qty+=qty;
+  else stock[barcode]={title:variant.title,variant:variant.variant,barcode,qty};
+  saveStock();updateStats();renderStock();renderTypeFilters();
+  document.getElementById('manual-feedback').innerHTML='<span style="color:#16a34a">✓ Добавено: '+variant.title+' '+variant.variant+' · '+qty+' бр.</span>';
+  document.getElementById('manual-qty').value=1;
+  setTimeout(()=>document.getElementById('manual-feedback').textContent='',2500);
+}
+
+function guessType(title){
+  const t=title.toLowerCase();
+  if(t.includes('hanorac')||t.includes('hoodie'))return 'Суичър';
+  if(t.includes('tricou'))return 'Тениска';
+  if(t.includes('trening'))return 'Тренинг';
+  if(t.includes('pantalon'))return 'Панталон';
+  if(t.includes('maieu'))return 'Майка';
+  if(t.includes('set'))return 'Сет';
+  return 'Друго';
+}
+
+function renderTypeFilters(){
+  const types=['all',...new Set(Object.values(stock).map(i=>guessType(i.title)))];
+  document.getElementById('type-filters').innerHTML=types.map(t=>'<button class="filter-btn'+(t===typeFilter?' active-f':'')+'" onclick="setFilter(\''+t+'\')">'+(t==='all'?'Всички':t)+'</button>').join('');
+}
+function setFilter(t){typeFilter=t;renderTypeFilters();renderStock();}
+
+function renderStock(){
+  const search=(document.getElementById('stock-search').value||'').toLowerCase();
+  const items=Object.values(stock).filter(i=>{
+    const type=guessType(i.title);
+    return(typeFilter==='all'||type===typeFilter)&&(!search||i.title.toLowerCase().includes(search)||i.variant.toLowerCase().includes(search)||i.barcode.includes(search));
+  }).sort((a,b)=>a.title.localeCompare(b.title,'ro'));
+  const el=document.getElementById('stock-list');
+  if(!items.length){el.innerHTML='<div class="empty">Нищо в склада</div>';return;}
+  el.innerHTML=items.map(i=>'<div class="stock-item"><div><div style="font-size:14px">'+i.title+'</div><div style="font-size:12px;color:#6b7280;margin-top:1px">'+i.variant+' · <span style="font-family:monospace">'+i.barcode+'</span></div></div><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-qty">'+i.qty+' бр.</span><button class="btn btn-sm" onclick="adj(\''+i.barcode+'\',-1)">−1</button><button class="btn btn-sm btn-danger" onclick="adj(\''+i.barcode+'\',0)">×</button></div></div>').join('');
+}
+
+function adj(barcode,delta){
+  if(delta===0){delete stock[barcode];}
+  else{if(stock[barcode]){stock[barcode].qty+=delta;if(stock[barcode].qty<=0)delete stock[barcode];}}
+  saveStock();renderStock();updateStats();renderTypeFilters();
+}
+
+function updateStats(){
+  const items=Object.values(stock);
+  document.getElementById('stat-products').textContent=items.length;
+  document.getElementById('stat-items').textContent=items.reduce((s,i)=>s+i.qty,0);
+  document.getElementById('stat-types').textContent=new Set(items.map(i=>guessType(i.title))).size;
+}
+
+function clearStock(){if(!confirm('Сигурен ли си? Изтрива цялата наличност.'))return;stock={};saveStock();renderStock();updateStats();renderTypeFilters();}
+
+function switchTab(name){
+  const names=['scan-in','scan-check','stock','setup'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='scan-in')setTimeout(()=>document.getElementById('scan-in-input').focus(),100);
+  if(name==='scan-check')setTimeout(()=>document.getElementById('scan-check-input').focus(),100);
+}
+
+document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))document.getElementById('manual-drop').style.display='none';});
+
+init();
+</script>
+</body>
+</html>
