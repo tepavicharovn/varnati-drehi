@@ -336,7 +336,9 @@ function loadCSV(e){
       const title=(cols[titleIdx]||'').replace(/"/g,'').trim();
       if(title)currentTitle=title;
       const variant=variantIdx>=0?(cols[variantIdx]||'').replace(/"/g,'').trim():'';
-      const barcode=(cols[barcodeIdx]||'').replace(/"/g,'').trim();
+      let barcode=(cols[barcodeIdx]||'').replace(/"/g,'').trim();
+      // Махаме апостроф в началото (Excel/Shopify форматира числа с ')
+      if(barcode.startsWith("'")) barcode = barcode.substring(1);
       const price=priceIdx>=0?parseFloat((cols[priceIdx]||'0').replace(/"/g,''))||0:0;
       if(currentTitle&&barcode)newCatalog.push({title:currentTitle,variant,barcode,price});
     }
