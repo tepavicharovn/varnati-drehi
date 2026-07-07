@@ -514,6 +514,12 @@ function useItem(barcode){
     if(stock[barcode].qty<=0)delete stock[barcode];
     saveStock();updateStats();renderStock();renderTypeFilters();
   }
+  // Показваме визуална обратна връзка и подготвяме за следващо сканиране
+  document.getElementById('check-result').innerHTML='<div style="font-size:14px;color:#16a34a;padding:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-weight:500">✓ Успешно извадено — сканирай следващ баркод</div>';
+  setTimeout(()=>{
+    document.getElementById('check-result').innerHTML='';
+    document.getElementById('scan-check-input').focus();
+  }, 1500);
 }
 
 function renderCheckHistory(){
