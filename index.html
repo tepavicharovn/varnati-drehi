@@ -289,26 +289,50 @@ function parseCSVLine(line){
   return result;
 }
 
+// Разбива CSV на записи, като зачита newlines вътре в кавички
+function splitCSVRecords(text){
+  const records=[];
+  let current='';
+  let inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c==='"'){
+      inQ=!inQ;
+      current+=c;
+    } else if(c==='\n' && !inQ){
+      if(current.trim()) records.push(current);
+      current='';
+    } else if(c==='\r' && !inQ){
+      // skip carriage return
+    } else {
+      current+=c;
+    }
+  }
+  if(current.trim()) records.push(current);
+  return records;
+}
+
 function loadCSV(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=function(ev){
-    const lines=ev.target.result.split('\n');
+    const lines=splitCSVRecords(ev.target.result);
     if(lines.length<2){document.getElementById('csv-status').textContent='Грешка: файлът е празен.';return;}
-    const header=lines[0].split(',').map(h=>h.trim().replace(/"/g,'').toLowerCase());
+    const header=parseCSVLine(lines[0]).map(h=>h.trim().replace(/"/g,'').toLowerCase());
     const titleIdx=header.findIndex(h=>h==='title');
-    const variantIdx=header.findIndex(h=>h.includes('variant title'));
+    const variantIdx=header.findIndex(h=>h.includes('option1 value')||h.includes('variant title'));
     const barcodeIdx=header.findIndex(h=>h==='variant barcode'||h==='barcode');
     const priceIdx=header.findIndex(h=>h==='variant price'||h==='price');
     if(titleIdx<0||barcodeIdx<0){
-      document.getElementById('csv-status').innerHTML='<span style="color:#dc2626">Не намерих нужните колони.</span>';
+      document.getElementById('csv-status').innerHTML='<span style="color:#dc2626">Не намерих нужните колони. titleIdx='+titleIdx+' barcodeIdx='+barcodeIdx+'</span>';
       return;
     }
     const newCatalog=[];
     let currentTitle='';
+    let skippedRows = 0;
     for(let i=1;i<lines.length;i++){
       const cols=parseCSVLine(lines[i]);
-      if(cols.length<=barcodeIdx)continue;
+      if(cols.length<=barcodeIdx){skippedRows++;continue;}
       const title=(cols[titleIdx]||'').replace(/"/g,'').trim();
       if(title)currentTitle=title;
       const variant=variantIdx>=0?(cols[variantIdx]||'').replace(/"/g,'').trim():'';
@@ -319,7 +343,8 @@ function loadCSV(e){
     catalog=newCatalog;
     lsSet('fw_catalog',catalog);
     updateCatalogInfo();
-    document.getElementById('csv-status').innerHTML='<span style="color:#16a34a">Заредени '+catalog.length+' варианта от '+new Set(catalog.map(c=>c.title)).size+' продукта!</span>';
+    const uniqueTitles = new Set(catalog.map(c=>c.title)).size;
+    document.getElementById('csv-status').innerHTML='<span style="color:#16a34a">Заредени '+catalog.length+' варианта от '+uniqueTitles+' продукта! (пропуснати '+skippedRows+' реда)</span>';
   };
   reader.readAsText(file,'UTF-8');
 }
