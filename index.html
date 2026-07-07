@@ -103,7 +103,7 @@ input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border
   <div class="info-box">Сканирай баркода от стоковата разписка на върнатата пратка. Артикулът се добавя автоматично в склада.</div>
   <div class="card">
     <label>Сканирай баркод — полето трябва да е активно</label>
-    <input class="scan-input" type="text" id="scan-in-input" placeholder="Сканирай или въведи баркод..." onkeydown="onScanInKey(event)" autofocus autocomplete="off">
+    <input class="scan-input" type="text" id="scan-in-input" placeholder="Сканирай или въведи баркод..." onkeydown="onScanInKey(event)" oninput="onScanInInput()" autofocus autocomplete="off">
     <div class="feedback" id="scan-in-feedback"></div>
   </div>
   <div id="scan-in-history" style="display:none">
@@ -117,7 +117,7 @@ input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border
   <div class="info-box">Сканирай баркодовете от стоковата разписка на новата поръчка. За Mystery Box — системата показва наличните артикули от същия тип и размер.</div>
   <div class="card">
     <label>Сканирай баркод от новата поръчка</label>
-    <input class="scan-input" type="text" id="scan-check-input" placeholder="Сканирай или въведи баркод..." onkeydown="onScanCheckKey(event)" autocomplete="off">
+    <input class="scan-input" type="text" id="scan-check-input" placeholder="Сканирай или въведи баркод..." onkeydown="onScanCheckKey(event)" oninput="onScanCheckInput()" autocomplete="off">
     <div class="feedback" id="scan-check-feedback"></div>
   </div>
   <div id="check-result"></div>
@@ -367,9 +367,22 @@ function onScanInKey(e){
   if(e.key==='Enter'){
     const val=document.getElementById('scan-in-input').value.trim();
     if(!val)return;
+    if(scanInTimer)clearTimeout(scanInTimer);
     processAddBarcode(val);
     document.getElementById('scan-in-input').value='';
   }
+}
+
+let scanInTimer = null;
+function onScanInInput(){
+  if(scanInTimer) clearTimeout(scanInTimer);
+  scanInTimer = setTimeout(()=>{
+    const val=document.getElementById('scan-in-input').value.trim();
+    if(val.length >= 6){ // минимум 6 знака за баркод
+      processAddBarcode(val);
+      document.getElementById('scan-in-input').value='';
+    }
+  }, 150);
 }
 
 function processAddBarcode(barcode){
@@ -403,9 +416,22 @@ function onScanCheckKey(e){
   if(e.key==='Enter'){
     const val=document.getElementById('scan-check-input').value.trim();
     if(!val)return;
+    if(scanCheckTimer)clearTimeout(scanCheckTimer);
     processCheckBarcode(val);
     document.getElementById('scan-check-input').value='';
   }
+}
+
+let scanCheckTimer = null;
+function onScanCheckInput(){
+  if(scanCheckTimer) clearTimeout(scanCheckTimer);
+  scanCheckTimer = setTimeout(()=>{
+    const val=document.getElementById('scan-check-input').value.trim();
+    if(val.length >= 6){
+      processCheckBarcode(val);
+      document.getElementById('scan-check-input').value='';
+    }
+  }, 150);
 }
 
 function logSearch(entry){
