@@ -207,7 +207,10 @@ input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border
     <div class="feedback" id="manual-feedback"></div>
   </div>
   <div class="card">
-    <h3 style="font-size:13px;font-weight:500;margin-bottom:6px">Каталог (<span id="catalog-count">0</span> варианта)</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h3 style="font-size:13px;font-weight:500">Каталог (<span id="catalog-count">0</span> варианта)</h3>
+      <button class="btn btn-sm btn-danger" onclick="clearCatalog()">Изчисти каталога</button>
+    </div>
     <div id="catalog-preview" style="max-height:150px;overflow-y:auto;font-size:12px;color:#6b7280"></div>
   </div>
 </div>
@@ -552,6 +555,14 @@ function updateStats(){
 }
 
 function clearStock(){if(!confirm('Сигурен ли си?'))return;stock={};saveStock();renderStock();updateStats();renderTypeFilters();}
+
+function clearCatalog(){
+  if(!confirm('Сигурен ли си? Ще изтрие целия каталог с продукти. Наличностите остават.'))return;
+  catalog=[];
+  lsSet('fw_catalog',catalog);
+  updateCatalogInfo();
+  document.getElementById('csv-status').innerHTML='<span style="color:#6b7280">Каталогът е изтрит. Качи нов CSV.</span>';
+}
 
 function exportBackup(){
   const data=JSON.stringify({stock,searchLog,exportedAt:new Date().toISOString()},null,2);
