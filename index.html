@@ -378,11 +378,11 @@ function onScanInInput(){
   if(scanInTimer) clearTimeout(scanInTimer);
   scanInTimer = setTimeout(()=>{
     const val=document.getElementById('scan-in-input').value.trim();
-    if(val.length >= 6){ // минимум 6 знака за баркод
+    if(val.length >= 6){
       processAddBarcode(val);
       document.getElementById('scan-in-input').value='';
     }
-  }, 150);
+  }, 300);
 }
 
 function processAddBarcode(barcode){
@@ -431,7 +431,7 @@ function onScanCheckInput(){
       processCheckBarcode(val);
       document.getElementById('scan-check-input').value='';
     }
-  }, 150);
+  }, 300);
 }
 
 function logSearch(entry){
