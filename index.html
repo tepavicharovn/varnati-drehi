@@ -200,6 +200,7 @@ input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border
         <input type="text" id="manual-selected" readonly placeholder="Избери от търсенето..." style="background:#f9fafb">
       </div>
     </div>
+    <div id="manual-preview" style="display:none;margin-bottom:10px"></div>
     <div class="row">
       <div class="grow">
         <label>Размер</label>
@@ -328,23 +329,27 @@ function loadCSV(e, append){
     const variantIdx=header.findIndex(h=>h.includes('option1 value')||h.includes('variant title'));
     const barcodeIdx=header.findIndex(h=>h==='variant barcode'||h==='barcode');
     const priceIdx=header.findIndex(h=>h==='variant price'||h==='price');
+    const imgIdx=header.findIndex(h=>h==='image src');
     if(titleIdx<0||barcodeIdx<0){
       document.getElementById('csv-status').innerHTML='<span style="color:#dc2626">Не намерих нужните колони. titleIdx='+titleIdx+' barcodeIdx='+barcodeIdx+'</span>';
       return;
     }
     const newItems=[];
     let currentTitle='';
+    let currentImg='';
     let skippedRows = 0;
     for(let i=1;i<lines.length;i++){
       const cols=parseCSVLine(lines[i]);
       if(cols.length<=barcodeIdx){skippedRows++;continue;}
       const title=(cols[titleIdx]||'').replace(/"/g,'').trim();
-      if(title)currentTitle=title;
+      if(title){currentTitle=title;currentImg='';} // нов продукт - reset img
+      const imgSrc = imgIdx>=0 ? (cols[imgIdx]||'').replace(/"/g,'').trim() : '';
+      if(imgSrc && !currentImg) currentImg = imgSrc; // първата снимка на продукта
       const variant=variantIdx>=0?(cols[variantIdx]||'').replace(/"/g,'').trim():'';
       let barcode=(cols[barcodeIdx]||'').replace(/"/g,'').trim();
       if(barcode.startsWith("'")) barcode = barcode.substring(1);
       const price=priceIdx>=0?parseFloat((cols[priceIdx]||'0').replace(/"/g,''))||0:0;
-      if(currentTitle&&barcode)newItems.push({title:currentTitle,variant,barcode,price});
+      if(currentTitle&&barcode)newItems.push({title:currentTitle,variant,barcode,price,img:currentImg});
     }
     if(append){
       // Добавяме към съществуващия каталог, но пропускаме дублирани баркодове
@@ -557,10 +562,22 @@ function onManualInput(){
   const drop=document.getElementById('manual-drop');
   manualAcIndex=-1;
   if(val.length<2){drop.style.display='none';return;}
-  const titles=[...new Set(catalog.filter(c=>c.title.toLowerCase().includes(val)&&!isMysteryBox(c.title)).map(c=>c.title))].slice(0,10);
-  if(!titles.length){drop.style.display='none';return;}
-  manualMatches=titles;
-  drop.innerHTML=titles.map((t,i)=>'<div class="ac-item" data-i="'+i+'" onmousedown="pickManual('+i+')">'+t+'</div>').join('');
+  // Взимаме уникални title-и заедно с първата снимка на всеки
+  const seen = new Set();
+  const items = [];
+  for(const c of catalog){
+    if(!c.title.toLowerCase().includes(val) || isMysteryBox(c.title)) continue;
+    if(seen.has(c.title)) continue;
+    seen.add(c.title);
+    items.push({title:c.title, img:c.img||''});
+    if(items.length>=10) break;
+  }
+  if(!items.length){drop.style.display='none';return;}
+  manualMatches=items.map(i=>i.title);
+  drop.innerHTML=items.map((it,i)=>{
+    const imgHtml = it.img ? '<img src="'+it.img+'" style="width:36px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0" onerror="this.style.display=\'none\'">' : '<div style="width:36px;height:36px;background:#f3f4f6;border-radius:4px;flex-shrink:0"></div>';
+    return '<div class="ac-item" data-i="'+i+'" onmousedown="pickManual('+i+')" style="display:flex;align-items:center;gap:10px">'+imgHtml+'<span>'+it.title+'</span></div>';
+  }).join('');
   drop.style.display='block';
 }
 
@@ -581,6 +598,15 @@ function pickManual(i){
   document.getElementById('manual-drop').style.display='none';
   const variants=catalog.filter(c=>c.title===title);
   selectedProduct={title,variants};
+  // Показваме снимка на избрания продукт
+  const productWithImg = variants.find(v=>v.img);
+  const previewEl = document.getElementById('manual-preview');
+  if(productWithImg && productWithImg.img){
+    previewEl.innerHTML='<img src="'+productWithImg.img+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb" onerror="this.style.display=\'none\'">';
+    previewEl.style.display='block';
+  } else {
+    previewEl.style.display='none';
+  }
   const sel=document.getElementById('manual-size-select');
   sel.innerHTML=variants.map(v=>'<option value="'+v.barcode+'">'+(v.variant||'Стандартен')+'</option>').join('');
   sel.style.display='block';
