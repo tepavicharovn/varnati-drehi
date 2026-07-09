@@ -179,8 +179,13 @@ input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border
   </div>
   <div class="card">
     <label>Качи Products CSV от Shopify</label>
-    <input type="file" id="csv-file" accept=".csv" onchange="loadCSV(event)" style="padding:6px">
+    <input type="file" id="csv-file" accept=".csv" onchange="loadCSV(event, false)" style="padding:6px">
     <div id="csv-status" style="margin-top:8px;font-size:13px"></div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6">
+      <label>Добави още CSV (към съществуващия каталог)</label>
+      <input type="file" id="csv-file-append" accept=".csv" onchange="loadCSV(event, true)" style="padding:6px">
+      <p style="font-size:11px;color:#6b7280;margin-top:4px">Полезно ако имаш продукти от няколко Shopify магазина — качваш всеки CSV поотделно.</p>
+    </div>
   </div>
   <div class="card">
     <h3 style="font-size:13px;font-weight:500;margin-bottom:8px">Ръчно добавяне към склада <span style="font-size:11px;color:#9ca3af">— за начална инвентаризация</span></h3>
@@ -312,7 +317,7 @@ function splitCSVRecords(text){
   return records;
 }
 
-function loadCSV(e){
+function loadCSV(e, append){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=function(ev){
@@ -327,7 +332,7 @@ function loadCSV(e){
       document.getElementById('csv-status').innerHTML='<span style="color:#dc2626">Не намерих нужните колони. titleIdx='+titleIdx+' barcodeIdx='+barcodeIdx+'</span>';
       return;
     }
-    const newCatalog=[];
+    const newItems=[];
     let currentTitle='';
     let skippedRows = 0;
     for(let i=1;i<lines.length;i++){
@@ -337,16 +342,31 @@ function loadCSV(e){
       if(title)currentTitle=title;
       const variant=variantIdx>=0?(cols[variantIdx]||'').replace(/"/g,'').trim():'';
       let barcode=(cols[barcodeIdx]||'').replace(/"/g,'').trim();
-      // Махаме апостроф в началото (Excel/Shopify форматира числа с ')
       if(barcode.startsWith("'")) barcode = barcode.substring(1);
       const price=priceIdx>=0?parseFloat((cols[priceIdx]||'0').replace(/"/g,''))||0:0;
-      if(currentTitle&&barcode)newCatalog.push({title:currentTitle,variant,barcode,price});
+      if(currentTitle&&barcode)newItems.push({title:currentTitle,variant,barcode,price});
     }
-    catalog=newCatalog;
-    lsSet('fw_catalog',catalog);
-    updateCatalogInfo();
-    const uniqueTitles = new Set(catalog.map(c=>c.title)).size;
-    document.getElementById('csv-status').innerHTML='<span style="color:#16a34a">Заредени '+catalog.length+' варианта от '+uniqueTitles+' продукта! (пропуснати '+skippedRows+' реда)</span>';
+    if(append){
+      // Добавяме към съществуващия каталог, но пропускаме дублирани баркодове
+      const existingBarcodes = new Set(catalog.map(c=>c.barcode));
+      let added = 0, dupes = 0;
+      newItems.forEach(item=>{
+        if(existingBarcodes.has(item.barcode)){ dupes++; }
+        else { catalog.push(item); existingBarcodes.add(item.barcode); added++; }
+      });
+      lsSet('fw_catalog',catalog);
+      updateCatalogInfo();
+      const uniqueTitles = new Set(catalog.map(c=>c.title)).size;
+      document.getElementById('csv-status').innerHTML='<span style="color:#16a34a">Добавени '+added+' нови варианта. Пропуснати '+dupes+' дублирани. Общо в каталога: '+catalog.length+' от '+uniqueTitles+' продукта.</span>';
+    } else {
+      catalog=newItems;
+      lsSet('fw_catalog',catalog);
+      updateCatalogInfo();
+      const uniqueTitles = new Set(catalog.map(c=>c.title)).size;
+      document.getElementById('csv-status').innerHTML='<span style="color:#16a34a">Заредени '+catalog.length+' варианта от '+uniqueTitles+' продукта! (пропуснати '+skippedRows+' реда)</span>';
+    }
+    // Изчиства инпута за следващо качване
+    e.target.value = '';
   };
   reader.readAsText(file,'UTF-8');
 }
