@@ -958,11 +958,11 @@ function renderPrintPreview(){
 function buildPrintCard(p){
   const imgHtml = p.img ? '<img src="'+p.img+'" style="width:100px;height:100px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb" onerror="this.style.display=\'none\'">' : '<div style="width:100px;height:100px;background:#f3f4f6;border-radius:6px"></div>';
   const variantsHtml = p.variants.map(v=>{
-    return '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">'+(v.variant||'-')+'</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:13px">'+v.barcode+'</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:60px;text-align:center">___</td></tr>';
+    return '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;vertical-align:middle">'+(v.variant||'-')+'</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;text-align:center"><svg class="barcode" data-value="'+v.barcode+'"></svg></td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:60px;text-align:center;vertical-align:middle">___</td></tr>';
   }).join('');
   return '<div class="print-card" style="display:flex;gap:12px;padding:12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:10px;page-break-inside:avoid;background:#fff">'+
     imgHtml+
-    '<div style="flex:1"><div style="font-weight:600;margin-bottom:8px">'+p.title+'</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f3f4f6"><th style="text-align:left;padding:4px 8px">Размер</th><th style="text-align:left;padding:4px 8px">Баркод</th><th style="padding:4px 8px;width:60px">Брой</th></tr></thead><tbody>'+variantsHtml+'</tbody></table></div>'+
+    '<div style="flex:1"><div style="font-weight:600;margin-bottom:8px">'+p.title+'</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f3f4f6"><th style="text-align:left;padding:4px 8px">Размер</th><th style="text-align:center;padding:4px 8px">Баркод</th><th style="padding:4px 8px;width:60px">Брой</th></tr></thead><tbody>'+variantsHtml+'</tbody></table></div>'+
   '</div>';
 }
 
@@ -970,9 +970,12 @@ function doPrint(){
   const items = getFilteredForPrint();
   if(!items.length){ alert('Няма продукти за печат'); return; }
   const printWindow = window.open('', '_blank');
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Списък за инвентаризация</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:20px;font-size:12px}h1{font-size:18px;margin-bottom:16px}.print-card{display:flex;gap:12px;padding:12px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;page-break-inside:avoid}img{width:100px;height:100px;object-fit:cover;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:4px 8px;border-bottom:1px solid #e5e7eb;text-align:left}th{background:#f3f4f6}@media print{@page{margin:1cm}}</style></head><body><h1>Списък за инвентаризация ('+items.length+' продукта)</h1>'+
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Списък за инвентаризация</title>'+
+  '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>'+
+  '<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:20px;font-size:12px}h1{font-size:18px;margin-bottom:16px}.print-card{display:flex;gap:12px;padding:12px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;page-break-inside:avoid}img{width:100px;height:100px;object-fit:cover;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:4px 8px;border-bottom:1px solid #e5e7eb;text-align:left}th{background:#f3f4f6}svg.barcode{max-width:200px;height:40px}@media print{@page{margin:1cm}}</style>'+
+  '</head><body><h1>Списък за инвентаризация ('+items.length+' продукта)</h1>'+
     items.map(p=>buildPrintCard(p)).join('')+
-    '<script>window.onload=function(){window.print();}<\/script></body></html>';
+    '<script>window.onload=function(){document.querySelectorAll("svg.barcode").forEach(function(el){var val=el.getAttribute("data-value");try{JsBarcode(el,val,{format:"CODE128",width:1.5,height:40,fontSize:12,margin:2});}catch(e){el.outerHTML="<span style=\'font-family:monospace\'>"+val+"</span>";}});setTimeout(function(){window.print();},500);}<\/script></body></html>';
   printWindow.document.write(html);
   printWindow.document.close();
 }
