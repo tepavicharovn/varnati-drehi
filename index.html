@@ -186,6 +186,10 @@ input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border
     <div class="card">
       <label>Търси в имена (по избор)</label>
       <input type="text" id="print-search" placeholder="напр. Chicago..." oninput="renderPrintPreview()">
+      <div style="margin-top:12px">
+        <label>Размери (по избор — ако не избереш, ще се разпечатат всички)</label>
+        <div id="print-sizes" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" onclick="clearPrintFile()">Изчисти файла</button>
         <button class="btn btn-primary" onclick="doPrint()">Разпечатай</button>
@@ -879,6 +883,7 @@ function switchTab(name){
 
 // РАЗПЕЧАТАЙ — временен CSV, не се пази
 let printCatalog = [];
+let selectedPrintSizes = new Set();
 
 function loadPrintCSV(e){
   const file=e.target.files[0];if(!file)return;
@@ -911,16 +916,40 @@ function loadPrintCSV(e){
       if(currentTitle&&barcode)items.push({title:currentTitle,variant,barcode,img:currentImg});
     }
     printCatalog = items;
+    selectedPrintSizes.clear();
     document.getElementById('print-csv-status').innerHTML='<span style="color:#16a34a">Заредени '+items.length+' варианта от '+new Set(items.map(i=>i.title)).size+' продукта.</span>';
     document.getElementById('print-controls').style.display='block';
+    renderPrintSizes();
     renderPrintPreview();
     e.target.value = '';
   };
   reader.readAsText(file,'UTF-8');
 }
 
+function renderPrintSizes(){
+  const sizes = [...new Set(printCatalog.map(c=>c.variant).filter(v=>v))].sort((a,b)=>{
+    const order = ['XS','S','M','L','XL','2XL','XXL','3XL','4XL'];
+    const ia = order.indexOf(a); const ib = order.indexOf(b);
+    if(ia>=0 && ib>=0) return ia-ib;
+    if(ia>=0) return -1;
+    if(ib>=0) return 1;
+    return a.localeCompare(b);
+  });
+  document.getElementById('print-sizes').innerHTML = sizes.length
+    ? sizes.map(s=>'<span class="filter-btn'+(selectedPrintSizes.has(s)?' active-f':'')+'" style="cursor:pointer" onclick="togglePrintSize(\''+s.replace(/'/g,"\\\\'")+'\')">'+s+'</span>').join('')
+    : '<div style="color:#9ca3af;font-size:12px">Няма размери</div>';
+}
+
+function togglePrintSize(s){
+  if(selectedPrintSizes.has(s)) selectedPrintSizes.delete(s);
+  else selectedPrintSizes.add(s);
+  renderPrintSizes();
+  renderPrintPreview();
+}
+
 function clearPrintFile(){
   printCatalog = [];
+  selectedPrintSizes.clear();
   document.getElementById('print-controls').style.display='none';
   document.getElementById('print-csv-status').textContent='';
   document.getElementById('print-search').value='';
@@ -930,6 +959,8 @@ function getFilteredForPrint(){
   const search = document.getElementById('print-search').value.toLowerCase().trim();
   const byTitle = {};
   for(const c of printCatalog){
+    // Филтриране по размер
+    if(selectedPrintSizes.size > 0 && !selectedPrintSizes.has(c.variant)) continue;
     if(!byTitle[c.title]) byTitle[c.title] = {title:c.title, img:c.img||'', variants:[]};
     byTitle[c.title].variants.push({variant:c.variant, barcode:c.barcode});
   }
