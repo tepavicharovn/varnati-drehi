@@ -387,6 +387,39 @@ function updateCatalogInfo(){
 
 function findByBarcode(b){return catalog.find(c=>c.barcode===b||c.barcode===b.trim());}
 function findSameProduct(title){return catalog.filter(c=>c.title===title);}
+function findSimilarInStock(item){
+  // Извличаме ключови думи от името (изключваме често срещани прилагателни/наречия)
+  const stopWords = new Set(['sportiv','sport','respirabil','set','de','din','cu','pentru','и','и','на','от','с','за','a','an','the','oversized','oversize','унисекс','unisex','tricou','maieu','pantalon','hanorac','hanorace','tricouri','maieuri','pantaloni','hoodie','sortsuri','sorts','sort','trening','пуловер','майка','пуловери','майки','пантaлoни','панталон','панталони','панталонки','тренинг','тениска','тениски','суичър','суичъри','шорти','шорт','екип','екипи','сет','сетове','комплект','комплекти','полиестер','дишащ','удобен','memory','подарък','двойки','двойка','мъж','жена','мъже','жени','и','от']);
+  const words = item.title.toLowerCase().replace(/[.,\-\/–—()]/g,' ').split(/\s+/).filter(w=>w.length>=3 && !stopWords.has(w));
+  if(!words.length) return [];
+
+  // Groupираме склада по title и извличаме уникални артикули (не варианти)
+  const stockByTitle = {};
+  for(const s of Object.values(stock)){
+    if(isMysteryBox(s.title)) continue;
+    if(s.title === item.title) continue; // изключваме точния продукт
+    if(!stockByTitle[s.title]){
+      const catalogEntry = catalog.find(c=>c.title===s.title);
+      stockByTitle[s.title] = {title:s.title, img: catalogEntry?catalogEntry.img:'', variants:[]};
+    }
+    stockByTitle[s.title].variants.push({variant:s.variant, qty:s.qty, barcode:s.barcode});
+  }
+
+  // Скорираме всеки склад продукт по брой съвпадащи ключови думи
+  const scored = [];
+  for(const st of Object.values(stockByTitle)){
+    const otherWords = st.title.toLowerCase().replace(/[.,\-\/–—()]/g,' ').split(/\s+/).filter(w=>w.length>=3 && !stopWords.has(w));
+    let matches = 0;
+    for(const w of words){
+      if(otherWords.includes(w)) matches++;
+    }
+    if(matches>=1){
+      scored.push({...st, score:matches});
+    }
+  }
+  scored.sort((a,b)=>b.score-a.score);
+  return scored.slice(0,8);
+}
 
 function onScanInKey(e){
   if(e.key==='Enter'){
@@ -494,6 +527,21 @@ function processCheckBarcode(barcode){
   if(otherAvailable.length>0){
     html+='<div class="result-box other"><div style="font-size:13px;font-weight:500;color:#854d0e;margin-bottom:8px">Същият модел е наличен в друг размер — можеш ли да го замениш?</div>'+otherAvailable.map(v=>'<span class="other-size-btn" onclick="useItem(\''+v.barcode+'\');this.style.opacity=\'0.4\'">'+v.variant+' · '+stock[v.barcode].qty+' бр.</span>').join('')+'</div>';
   }
+
+  // Сходни продукти в склада (по ключови думи от името)
+  const similar = findSimilarInStock(item);
+  if(similar.length > 0){
+    html += '<div style="margin-top:16px;padding:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px">';
+    html += '<div style="font-size:13px;font-weight:500;color:#0369a1;margin-bottom:10px">Сходни продукти в склада — възможно същият модел от друг сайт:</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">';
+    similar.forEach(s=>{
+      const imgHtml = s.img ? '<img src="'+s.img+'" style="width:100%;height:120px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">' : '<div style="width:100%;height:120px;background:#f3f4f6;border-radius:6px"></div>';
+      const variantsHtml = s.variants.map(v=>'<span style="display:inline-block;padding:2px 6px;margin:2px;background:#dbeafe;color:#1e40af;border-radius:4px;font-size:11px;cursor:pointer" onclick="useItem(\''+v.barcode+'\')">'+v.variant+' ('+v.qty+')</span>').join('');
+      html += '<div style="background:#fff;border-radius:6px;padding:6px">'+imgHtml+'<div style="font-size:11px;font-weight:500;margin-top:6px;line-height:1.3">'+s.title+'</div><div style="margin-top:4px">'+variantsHtml+'</div></div>';
+    });
+    html += '</div></div>';
+  }
+
   document.getElementById('check-result').innerHTML=html;
   checkHistory.unshift({title:item.title,variant:item.variant,found:inStock,otherSizes:otherAvailable.length,mystery:false,time:new Date().toLocaleTimeString('bg-BG',{hour:'2-digit',minute:'2-digit'})});
   renderCheckHistory();
@@ -602,7 +650,7 @@ function pickManual(i){
   const productWithImg = variants.find(v=>v.img);
   const previewEl = document.getElementById('manual-preview');
   if(productWithImg && productWithImg.img){
-    previewEl.innerHTML='<img src="'+productWithImg.img+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb" onerror="this.style.display=\'none\'">';
+    previewEl.innerHTML='<img src="'+productWithImg.img+'" style="width:160px;height:160px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb" onerror="this.style.display=\'none\'">';
     previewEl.style.display='block';
   } else {
     previewEl.style.display='none';
