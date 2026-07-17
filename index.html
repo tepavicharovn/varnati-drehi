@@ -95,6 +95,7 @@ input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border
   <div class="tab" onclick="switchTab('scan-check')">Проверка</div>
   <div class="tab" onclick="switchTab('stock')">Наличност</div>
   <div class="tab" onclick="switchTab('stats')">Статистика</div>
+  <div class="tab" onclick="switchTab('print')">Разпечатай</div>
   <div class="tab" onclick="switchTab('setup')">Настройки</div>
 </div>
 
@@ -168,6 +169,30 @@ input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border
   <div class="card">
     <h3 style="font-size:13px;font-weight:500;margin-bottom:12px">Детайли</h3>
     <div id="stats-details"></div>
+  </div>
+</div>
+
+<!-- РАЗПЕЧАТАЙ -->
+<div id="tab-print" class="panel">
+  <div class="info-box">
+    Качи временен CSV файл на колекция от Shopify. Файлът не се пази в приложението — само за печат. Когато качиш нов, старият се заменя.
+  </div>
+  <div class="card">
+    <label>Качи CSV на колекция (само за печат)</label>
+    <input type="file" id="print-csv" accept=".csv" onchange="loadPrintCSV(event)" style="padding:6px">
+    <div id="print-csv-status" style="margin-top:8px;font-size:13px"></div>
+  </div>
+  <div id="print-controls" style="display:none">
+    <div class="card">
+      <label>Търси в имена (по избор)</label>
+      <input type="text" id="print-search" placeholder="напр. Chicago..." oninput="renderPrintPreview()">
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="clearPrintFile()">Изчисти файла</button>
+        <button class="btn btn-primary" onclick="doPrint()">Разпечатай</button>
+      </div>
+      <div id="print-info" style="margin-top:8px;font-size:12px;color:#6b7280"></div>
+    </div>
+    <div id="print-preview"></div>
   </div>
 </div>
 
@@ -330,6 +355,7 @@ function loadCSV(e, append){
     const barcodeIdx=header.findIndex(h=>h==='variant barcode'||h==='barcode');
     const priceIdx=header.findIndex(h=>h==='variant price'||h==='price');
     const imgIdx=header.findIndex(h=>h==='image src');
+    const tagsIdx=header.findIndex(h=>h==='tags');
     if(titleIdx<0||barcodeIdx<0){
       document.getElementById('csv-status').innerHTML='<span style="color:#dc2626">Не намерих нужните колони. titleIdx='+titleIdx+' barcodeIdx='+barcodeIdx+'</span>';
       return;
@@ -337,19 +363,22 @@ function loadCSV(e, append){
     const newItems=[];
     let currentTitle='';
     let currentImg='';
+    let currentTags='';
     let skippedRows = 0;
     for(let i=1;i<lines.length;i++){
       const cols=parseCSVLine(lines[i]);
       if(cols.length<=barcodeIdx){skippedRows++;continue;}
       const title=(cols[titleIdx]||'').replace(/"/g,'').trim();
-      if(title){currentTitle=title;currentImg='';} // нов продукт - reset img
+      if(title){currentTitle=title;currentImg='';currentTags='';}
       const imgSrc = imgIdx>=0 ? (cols[imgIdx]||'').replace(/"/g,'').trim() : '';
-      if(imgSrc && !currentImg) currentImg = imgSrc; // първата снимка на продукта
+      if(imgSrc && !currentImg) currentImg = imgSrc;
+      const tags = tagsIdx>=0 ? (cols[tagsIdx]||'').replace(/"/g,'').trim() : '';
+      if(tags && !currentTags) currentTags = tags;
       const variant=variantIdx>=0?(cols[variantIdx]||'').replace(/"/g,'').trim():'';
       let barcode=(cols[barcodeIdx]||'').replace(/"/g,'').trim();
       if(barcode.startsWith("'")) barcode = barcode.substring(1);
       const price=priceIdx>=0?parseFloat((cols[priceIdx]||'0').replace(/"/g,''))||0:0;
-      if(currentTitle&&barcode)newItems.push({title:currentTitle,variant,barcode,price,img:currentImg});
+      if(currentTitle&&barcode)newItems.push({title:currentTitle,variant,barcode,price,img:currentImg,tags:currentTags});
     }
     if(append){
       // Добавяме към съществуващия каталог, но пропускаме дублирани баркодове
@@ -388,16 +417,44 @@ function updateCatalogInfo(){
 function findByBarcode(b){return catalog.find(c=>c.barcode===b||c.barcode===b.trim());}
 function findSameProduct(title){return catalog.filter(c=>c.title===title);}
 function findSimilarInStock(item){
-  // Извличаме ключови думи от името (изключваме често срещани прилагателни/наречия)
-  const stopWords = new Set(['sportiv','sport','respirabil','set','de','din','cu','pentru','и','и','на','от','с','за','a','an','the','oversized','oversize','унисекс','unisex','tricou','maieu','pantalon','hanorac','hanorace','tricouri','maieuri','pantaloni','hoodie','sortsuri','sorts','sort','trening','пуловер','майка','пуловери','майки','пантaлoни','панталон','панталони','панталонки','тренинг','тениска','тениски','суичър','суичъри','шорти','шорт','екип','екипи','сет','сетове','комплект','комплекти','полиестер','дишащ','удобен','memory','подарък','двойки','двойка','мъж','жена','мъже','жени','и','от']);
-  const words = item.title.toLowerCase().replace(/[.,\-\/–—()]/g,' ').split(/\s+/).filter(w=>w.length>=3 && !stopWords.has(w));
+  // Разширен списък със стопови думи — прилагателни, категории, общи термини
+  const stopWords = new Set([
+    // Съществителни за тип дреха
+    'tricou','tricouri','maieu','maieuri','pantalon','pantaloni','pantalonasi','hanorac','hanorace',
+    'hoodie','hoodies','sortsuri','sorts','sort','trening','treninguri','set','seturi','vesta','vestes','geaca','geci',
+    'echipament','echipamentul','sortsi','pantaloni','sortsi',
+    // Bulgarian equivalents
+    'тениска','тениски','майка','майки','панталон','панталони','пуловер','пуловери','суичър','суичъри',
+    'шорти','шорт','екип','екипи','сет','сетове','комплект','комплекти','гащи','яке','якета','жилетка','жилетки',
+    // Greek equivalents  
+    'μπλουζάκι','μπλούζα','φούτερ','παντελόνι','σορτς','σετ',
+    // Прилагателни и категории
+    'oversized','oversize','унисекс','unisex','sportiv','sport','respirabil','sportivi','sportiva',
+    'дишащ','удобен','полиестер','athletic','fitness','memory','premium','classic','basic','standard',
+    'бърз','бързосъхнеща','дишаща','мек','гладък','мемори',
+    // Куплирани комплекти
+    'cuplu','couple','двойки','двойка','мъж','жена','мъже','жени','bărbat','bărbați','femeie','femei',
+    'boys','girl','kids','deca','copii','copil','baiat','fata',
+    // Предлози, съюзи
+    'de','din','cu','pentru','și','pentru','и','на','от','с','за','a','an','the','и',
+    'from','to','with','for','and','or','without','without','до',
+    // Общи descriptori
+    'nou','noua','vechi','vechi','new','old','light','dark','heavy','лек','тежък','светъл','тъмен',
+    // Numerales fara sens
+    'seturi','buc','2','3','4','5','br','бр','брой','бройки'
+  ]);
+  const words = item.title.toLowerCase().replace(/[.,\-\/–—()"']/g,' ').split(/\s+/).filter(w=>{
+    if(w.length < 3) return false; // намалено от 4 на 3
+    if(stopWords.has(w)) return false;
+    if(/^wh\d*$/.test(w) || /^bl\d*$/.test(w) || /^rd\d*$/.test(w) || /^gr\d*$/.test(w)) return false;
+    return true;
+  });
   if(!words.length) return [];
 
-  // Groupираме склада по title и извличаме уникални артикули (не варианти)
   const stockByTitle = {};
   for(const s of Object.values(stock)){
     if(isMysteryBox(s.title)) continue;
-    if(s.title === item.title) continue; // изключваме точния продукт
+    if(s.title === item.title) continue;
     if(!stockByTitle[s.title]){
       const catalogEntry = catalog.find(c=>c.title===s.title);
       stockByTitle[s.title] = {title:s.title, img: catalogEntry?catalogEntry.img:'', variants:[]};
@@ -405,20 +462,31 @@ function findSimilarInStock(item){
     stockByTitle[s.title].variants.push({variant:s.variant, qty:s.qty, barcode:s.barcode});
   }
 
-  // Скорираме всеки склад продукт по брой съвпадащи ключови думи
   const scored = [];
   for(const st of Object.values(stockByTitle)){
-    const otherWords = st.title.toLowerCase().replace(/[.,\-\/–—()]/g,' ').split(/\s+/).filter(w=>w.length>=3 && !stopWords.has(w));
+    const otherWords = st.title.toLowerCase().replace(/[.,\-\/–—()"']/g,' ').split(/\s+/).filter(w=>{
+      if(w.length < 3) return false;
+      if(stopWords.has(w)) return false;
+      if(/^wh\d*$/.test(w) || /^bl\d*$/.test(w) || /^rd\d*$/.test(w) || /^gr\d*$/.test(w)) return false;
+      return true;
+    });
     let matches = 0;
     for(const w of words){
-      if(otherWords.includes(w)) matches++;
+      for(const ow of otherWords){
+        // Точно съвпадение
+        if(w === ow){ matches++; break; }
+        // Частично: една дума съдържа другата (за минимум 4 знака)
+        if(w.length >= 4 && ow.length >= 4){
+          if(w.includes(ow) || ow.includes(w)){ matches++; break; }
+        }
+      }
     }
     if(matches>=1){
       scored.push({...st, score:matches});
     }
   }
   scored.sort((a,b)=>b.score-a.score);
-  return scored.slice(0,8);
+  return scored.slice(0,12);
 }
 
 function onScanInKey(e){
@@ -516,13 +584,14 @@ function processCheckBarcode(barcode){
   const allVariants=findSameProduct(item.title);
   const otherAvailable=allVariants.filter(v=>v.barcode!==barcode&&stock[v.barcode]&&stock[v.barcode].qty>0);
   const price = item.price || 0;
+  const imgHtml = item.img ? '<img src="'+item.img+'" style="width:160px;height:160px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:10px" onerror="this.style.display=\'none\'">' : '';
   let html='';
   if(inStock){
     logSearch({type:'exact_match', barcode, title:item.title, variant:item.variant, found:true, price});
-    html='<div class="result-box found"><div style="font-size:15px;font-weight:600;color:#166534">НАЛИЧНО — вземи от склада</div><div style="font-size:13px;color:#166534;margin-top:4px">'+item.title+'</div><div style="font-size:12px;color:#166534;margin-top:2px">'+item.variant+' · '+stock[barcode].qty+' бр. налични</div><button class="btn btn-sm" style="margin-top:10px" onclick="useItem(\''+barcode+'\')">Използвай 1 бр.</button></div>';
+    html='<div class="result-box found">'+imgHtml+'<div style="font-size:15px;font-weight:600;color:#166534">НАЛИЧНО — вземи от склада</div><div style="font-size:13px;color:#166534;margin-top:4px">'+item.title+'</div><div style="font-size:12px;color:#166534;margin-top:2px">'+item.variant+' · '+stock[barcode].qty+' бр. налични</div><button class="btn btn-sm" style="margin-top:10px" onclick="useItem(\''+barcode+'\')">Използвай 1 бр.</button></div>';
   } else {
     logSearch({type:'not_found', barcode, title:item.title, variant:item.variant, found:false, price});
-    html='<div class="result-box missing"><div style="font-size:15px;font-weight:600;color:#991b1b">НЯМА — пусни принтера</div><div style="font-size:13px;color:#991b1b;margin-top:4px">'+item.title+'</div><div style="font-size:12px;color:#991b1b;margin-top:2px">'+item.variant+'</div></div>';
+    html='<div class="result-box missing">'+imgHtml+'<div style="font-size:15px;font-weight:600;color:#991b1b">НЯМА — пусни принтера</div><div style="font-size:13px;color:#991b1b;margin-top:4px">'+item.title+'</div><div style="font-size:12px;color:#991b1b;margin-top:2px">'+item.variant+'</div></div>';
   }
   if(otherAvailable.length>0){
     html+='<div class="result-box other"><div style="font-size:13px;font-weight:500;color:#854d0e;margin-bottom:8px">Същият модел е наличен в друг размер — можеш ли да го замениш?</div>'+otherAvailable.map(v=>'<span class="other-size-btn" onclick="useItem(\''+v.barcode+'\');this.style.opacity=\'0.4\'">'+v.variant+' · '+stock[v.barcode].qty+' бр.</span>').join('')+'</div>';
@@ -799,13 +868,113 @@ function renderStats(){
 }
 
 function switchTab(name){
-  const names=['scan-in','scan-check','stock','stats','setup'];
+  const names=['scan-in','scan-check','stock','stats','print','setup'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='scan-in')setTimeout(()=>document.getElementById('scan-in-input').focus(),100);
   if(name==='scan-check')setTimeout(()=>document.getElementById('scan-check-input').focus(),100);
   if(name==='stats') renderStats();
+}
+
+// РАЗПЕЧАТАЙ — временен CSV, не се пази
+let printCatalog = [];
+
+function loadPrintCSV(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const lines=splitCSVRecords(ev.target.result);
+    if(lines.length<2){document.getElementById('print-csv-status').textContent='Грешка: файлът е празен.';return;}
+    const header=parseCSVLine(lines[0]).map(h=>h.trim().replace(/"/g,'').toLowerCase());
+    const titleIdx=header.findIndex(h=>h==='title');
+    const variantIdx=header.findIndex(h=>h.includes('option1 value')||h.includes('variant title'));
+    const barcodeIdx=header.findIndex(h=>h==='variant barcode'||h==='barcode');
+    const imgIdx=header.findIndex(h=>h==='image src');
+    if(titleIdx<0||barcodeIdx<0){
+      document.getElementById('print-csv-status').innerHTML='<span style="color:#dc2626">Не намерих нужните колони.</span>';
+      return;
+    }
+    const items=[];
+    let currentTitle='';
+    let currentImg='';
+    for(let i=1;i<lines.length;i++){
+      const cols=parseCSVLine(lines[i]);
+      if(cols.length<=barcodeIdx)continue;
+      const title=(cols[titleIdx]||'').replace(/"/g,'').trim();
+      if(title){currentTitle=title;currentImg='';}
+      const imgSrc = imgIdx>=0 ? (cols[imgIdx]||'').replace(/"/g,'').trim() : '';
+      if(imgSrc && !currentImg) currentImg = imgSrc;
+      const variant=variantIdx>=0?(cols[variantIdx]||'').replace(/"/g,'').trim():'';
+      let barcode=(cols[barcodeIdx]||'').replace(/"/g,'').trim();
+      if(barcode.startsWith("'")) barcode = barcode.substring(1);
+      if(currentTitle&&barcode)items.push({title:currentTitle,variant,barcode,img:currentImg});
+    }
+    printCatalog = items;
+    document.getElementById('print-csv-status').innerHTML='<span style="color:#16a34a">Заредени '+items.length+' варианта от '+new Set(items.map(i=>i.title)).size+' продукта.</span>';
+    document.getElementById('print-controls').style.display='block';
+    renderPrintPreview();
+    e.target.value = '';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function clearPrintFile(){
+  printCatalog = [];
+  document.getElementById('print-controls').style.display='none';
+  document.getElementById('print-csv-status').textContent='';
+  document.getElementById('print-search').value='';
+}
+
+function getFilteredForPrint(){
+  const search = document.getElementById('print-search').value.toLowerCase().trim();
+  const byTitle = {};
+  for(const c of printCatalog){
+    if(!byTitle[c.title]) byTitle[c.title] = {title:c.title, img:c.img||'', variants:[]};
+    byTitle[c.title].variants.push({variant:c.variant, barcode:c.barcode});
+  }
+  return Object.values(byTitle).filter(p=>{
+    if(search && !p.title.toLowerCase().includes(search)) return false;
+    return true;
+  }).sort((a,b)=>a.title.localeCompare(b.title,'ro'));
+}
+
+function renderPrintPreview(){
+  const items = getFilteredForPrint();
+  document.getElementById('print-info').textContent = 'Ще се разпечатат ' + items.length + ' продукта с общо ' + items.reduce((s,p)=>s+p.variants.length,0) + ' варианта.';
+  if(!items.length){
+    document.getElementById('print-preview').innerHTML='<div class="empty">Няма продукти</div>';
+    return;
+  }
+  const preview = items.slice(0,10);
+  let html = '<h3 style="font-size:13px;font-weight:500;margin:16px 0 8px;color:#6b7280">Preview (първи 10):</h3>';
+  preview.forEach(p=>{
+    html += buildPrintCard(p);
+  });
+  if(items.length > 10) html += '<div style="text-align:center;padding:12px;color:#6b7280;font-size:12px">...и още '+(items.length-10)+' продукта. Натисни "Разпечатай" за да видиш всички.</div>';
+  document.getElementById('print-preview').innerHTML = html;
+}
+
+function buildPrintCard(p){
+  const imgHtml = p.img ? '<img src="'+p.img+'" style="width:100px;height:100px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb" onerror="this.style.display=\'none\'">' : '<div style="width:100px;height:100px;background:#f3f4f6;border-radius:6px"></div>';
+  const variantsHtml = p.variants.map(v=>{
+    return '<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">'+(v.variant||'-')+'</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:13px">'+v.barcode+'</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;width:60px;text-align:center">___</td></tr>';
+  }).join('');
+  return '<div class="print-card" style="display:flex;gap:12px;padding:12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:10px;page-break-inside:avoid;background:#fff">'+
+    imgHtml+
+    '<div style="flex:1"><div style="font-weight:600;margin-bottom:8px">'+p.title+'</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f3f4f6"><th style="text-align:left;padding:4px 8px">Размер</th><th style="text-align:left;padding:4px 8px">Баркод</th><th style="padding:4px 8px;width:60px">Брой</th></tr></thead><tbody>'+variantsHtml+'</tbody></table></div>'+
+  '</div>';
+}
+
+function doPrint(){
+  const items = getFilteredForPrint();
+  if(!items.length){ alert('Няма продукти за печат'); return; }
+  const printWindow = window.open('', '_blank');
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Списък за инвентаризация</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:20px;font-size:12px}h1{font-size:18px;margin-bottom:16px}.print-card{display:flex;gap:12px;padding:12px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;page-break-inside:avoid}img{width:100px;height:100px;object-fit:cover;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:4px 8px;border-bottom:1px solid #e5e7eb;text-align:left}th{background:#f3f4f6}@media print{@page{margin:1cm}}</style></head><body><h1>Списък за инвентаризация ('+items.length+' продукта)</h1>'+
+    items.map(p=>buildPrintCard(p)).join('')+
+    '<script>window.onload=function(){window.print();}<\/script></body></html>';
+  printWindow.document.write(html);
+  printWindow.document.close();
 }
 
 document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))document.getElementById('manual-drop').style.display='none';});
