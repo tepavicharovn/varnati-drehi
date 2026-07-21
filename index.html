@@ -791,7 +791,7 @@ function clearCatalog(){
 }
 
 function exportBackup(){
-  const data=JSON.stringify({stock,searchLog,exportedAt:new Date().toISOString()},null,2);
+  const data=JSON.stringify({stock,catalog,searchLog,exportedAt:new Date().toISOString()},null,2);
   const blob=new Blob([data],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -806,6 +806,7 @@ function importBackup(e){
     try{
       const data=JSON.parse(ev.target.result);
       if(data.stock){stock=data.stock;saveStock();}
+      if(data.catalog){catalog=data.catalog;lsSet('fw_catalog',catalog);updateCatalogInfo();}
       if(data.searchLog){searchLog=data.searchLog;saveSearchLog();}
       renderStock();updateStats();renderTypeFilters();
       alert('Backup зареден успешно!');
@@ -927,7 +928,17 @@ function loadPrintCSV(e){
 }
 
 function renderPrintSizes(){
-  const sizes = [...new Set(printCatalog.map(c=>c.variant).filter(v=>v))].sort((a,b)=>{
+  const sizeSet = new Set();
+  for(const c of printCatalog){
+    if(!c.variant) continue;
+    // Разделяме комбинирани размери (напр. "L/M", "L S", "L - M")
+    const parts = c.variant.split(/[\s\/,\-–—]+/);
+    for(const p of parts){
+      const t = p.trim();
+      if(t) sizeSet.add(t);
+    }
+  }
+  const sizes = [...sizeSet].sort((a,b)=>{
     const order = ['XS','S','M','L','XL','2XL','XXL','3XL','4XL'];
     const ia = order.indexOf(a); const ib = order.indexOf(b);
     if(ia>=0 && ib>=0) return ia-ib;
@@ -958,9 +969,24 @@ function clearPrintFile(){
 function getFilteredForPrint(){
   const search = document.getElementById('print-search').value.toLowerCase().trim();
   const byTitle = {};
+  const seenSizePerProduct = {}; // за дедупликация при филтър по размер
   for(const c of printCatalog){
-    // Филтриране по размер
-    if(selectedPrintSizes.size > 0 && !selectedPrintSizes.has(c.variant)) continue;
+    // Проверка за филтър по размер
+    if(selectedPrintSizes.size > 0){
+      // Проверяваме дали някой от избраните размери се съдържа в variant
+      let matches = false;
+      for(const s of selectedPrintSizes){
+        if(c.variant === s || c.variant.includes(s+' ') || c.variant.includes(' '+s) || c.variant.startsWith(s+'/') || c.variant.endsWith('/'+s) || c.variant.includes('/'+s+'/')){
+          matches = true;
+          break;
+        }
+      }
+      if(!matches) continue;
+      // Дедупликация: за всеки продукт, за всеки размер, взимаме само първия
+      const key = c.title + '||' + [...selectedPrintSizes].find(s=>c.variant===s||c.variant.includes(s+' ')||c.variant.includes(' '+s)||c.variant.startsWith(s+'/')||c.variant.endsWith('/'+s)||c.variant.includes('/'+s+'/'));
+      if(seenSizePerProduct[key]) continue;
+      seenSizePerProduct[key] = true;
+    }
     if(!byTitle[c.title]) byTitle[c.title] = {title:c.title, img:c.img||'', variants:[]};
     byTitle[c.title].variants.push({variant:c.variant, barcode:c.barcode});
   }
