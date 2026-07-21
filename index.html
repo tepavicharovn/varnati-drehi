@@ -969,26 +969,31 @@ function clearPrintFile(){
 function getFilteredForPrint(){
   const search = document.getElementById('print-search').value.toLowerCase().trim();
   const byTitle = {};
-  const seenSizePerProduct = {}; // за дедупликация при филтър по размер
+  const seenSizePerProduct = {}; // ключ: title||size
   for(const c of printCatalog){
-    // Проверка за филтър по размер
     if(selectedPrintSizes.size > 0){
-      // Проверяваме дали някой от избраните размери се съдържа в variant
-      let matches = false;
+      // Намираме кой размер от избраните се съдържа в variant-а
+      let matchedSize = null;
       for(const s of selectedPrintSizes){
-        if(c.variant === s || c.variant.includes(s+' ') || c.variant.includes(' '+s) || c.variant.startsWith(s+'/') || c.variant.endsWith('/'+s) || c.variant.includes('/'+s+'/')){
-          matches = true;
+        // Точна проверка дали размерът е част от variant
+        const parts = c.variant.split(/[\s\/,\-–—]+/).map(p=>p.trim());
+        if(parts.includes(s)){
+          matchedSize = s;
           break;
         }
       }
-      if(!matches) continue;
-      // Дедупликация: за всеки продукт, за всеки размер, взимаме само първия
-      const key = c.title + '||' + [...selectedPrintSizes].find(s=>c.variant===s||c.variant.includes(s+' ')||c.variant.includes(' '+s)||c.variant.startsWith(s+'/')||c.variant.endsWith('/'+s)||c.variant.includes('/'+s+'/'));
+      if(!matchedSize) continue;
+      // Дедупликация по title + matchedSize
+      const key = c.title + '||' + matchedSize;
       if(seenSizePerProduct[key]) continue;
       seenSizePerProduct[key] = true;
+      // Показваме размера като просто L (не L/M)
+      if(!byTitle[c.title]) byTitle[c.title] = {title:c.title, img:c.img||'', variants:[]};
+      byTitle[c.title].variants.push({variant:matchedSize, barcode:c.barcode});
+    } else {
+      if(!byTitle[c.title]) byTitle[c.title] = {title:c.title, img:c.img||'', variants:[]};
+      byTitle[c.title].variants.push({variant:c.variant, barcode:c.barcode});
     }
-    if(!byTitle[c.title]) byTitle[c.title] = {title:c.title, img:c.img||'', variants:[]};
-    byTitle[c.title].variants.push({variant:c.variant, barcode:c.barcode});
   }
   return Object.values(byTitle).filter(p=>{
     if(search && !p.title.toLowerCase().includes(search)) return false;
