@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Печат — FitnessWear</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#f1f5f9;font-size:14px;min-height:100vh}
+.wrap{max-width:1400px;margin:0 auto;padding:1rem}
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:8px}
+h2{font-size:18px;font-weight:600;color:#f1f5f9}
+.sub{font-size:12px;color:#94a3b8;margin-top:2px}
+.save-ind{font-size:11px;color:#64748b}
+.tabs{display:flex;border-bottom:1px solid #334155;margin-bottom:1.25rem}
+.tab{padding:10px 16px;cursor:pointer;font-size:13px;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:all 0.15s}
+.tab.active{color:#f1f5f9;border-bottom-color:#f1f5f9;font-weight:500}
+.panel{display:none}.panel.active{display:block}
+.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem}
+label{font-size:12px;color:#94a3b8;display:block;margin-bottom:4px}
+.scan-input{font-size:22px;padding:16px 20px;border:2px solid #475569;border-radius:12px;width:100%;font-family:monospace;background:#0f172a;color:#f1f5f9}
+.scan-input:focus{border-color:#f1f5f9;outline:none}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid #475569;background:#1e293b;color:#f1f5f9;transition:all 0.15s;font-family:inherit}
+.btn:hover{background:#334155}
+.btn-primary{background:#f1f5f9;color:#0f172a;border-color:transparent}
+.btn-primary:hover{opacity:0.85}
+input[type=file]{color:#f1f5f9}
+.info-box{background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:8px;padding:12px 16px;font-size:14px;color:#7dd3fc;margin-bottom:1rem;line-height:1.6}
+.product-view{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1.5rem;margin-top:1rem}
+.product-name{font-size:26px;font-weight:700;color:#f1f5f9;margin-bottom:1.5rem;text-align:center}
+.image-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr))}
+.image-item{background:#0f172a;border:1px solid #334155;border-radius:8px;overflow:hidden;aspect-ratio:1;position:relative}
+.image-item img{width:100%;height:100%;object-fit:contain;display:block;cursor:pointer}
+.image-item .zoom-hint{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:#fff;padding:4px 8px;border-radius:4px;font-size:11px}
+.empty{text-align:center;color:#64748b;padding:3rem 0;font-size:14px}
+.error-box{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;font-size:14px;color:#fca5a5;text-align:center}
+.feedback{font-size:14px;min-height:20px;margin-top:8px;color:#4ade80}
+.lightbox{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;cursor:pointer}
+.lightbox.active{display:flex}
+.lightbox img{max-width:95%;max-height:95vh;object-fit:contain}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hdr">
+  <div>
+    <h2>Печат — сканиране за визуализация</h2>
+    <div class="sub" id="hdr-info">FitnessWear</div>
+  </div>
+  <div class="save-ind" id="save-ind"></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('scan')">Сканиране</div>
+  <div class="tab" onclick="switchTab('setup')">Настройки</div>
+</div>
+
+<div id="tab-scan" class="panel active">
+  <div class="info-box">Сканирай баркода на продукта от стоковата разписка. Ще се покаже името и всички снимки на продукта за референция при лепенето на печатите.</div>
+  <div class="card">
+    <label>Сканирай баркод</label>
+    <input class="scan-input" type="text" id="scan-input" placeholder="Сканирай или въведи баркод..." onkeydown="onScanKey(event)" oninput="onScanInput()" autofocus autocomplete="off">
+    <div class="feedback" id="scan-feedback"></div>
+  </div>
+  <div id="result"></div>
+</div>
+
+<div id="tab-setup" class="panel">
+  <div class="info-box">
+    Качи CSV от Shopify. Приложението ще запази всички снимки на всеки продукт (не само първата).<br>
+    Можеш да качиш няколко CSV файла — те се обединяват в един каталог.
+  </div>
+  <div class="card">
+    <label>Качи Products CSV от Shopify</label>
+    <input type="file" id="csv-file" accept=".csv" onchange="loadCSV(event, false)" style="padding:6px">
+    <div id="csv-status" style="margin-top:8px;font-size:13px"></div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid #334155">
+      <label>Добави още CSV (към каталога)</label>
+      <input type="file" id="csv-file-append" accept=".csv" onchange="loadCSV(event, true)" style="padding:6px">
+    </div>
+  </div>
+  <div class="card">
+    <label style="display:flex;justify-content:space-between;align-items:center">
+      <span>Каталог (<span id="catalog-count">0</span> варианта)</span>
+      <button class="btn" style="padding:4px 10px;font-size:12px;color:#fca5a5;border-color:#7f1d1d" onclick="clearCatalog()">Изчисти</button>
+    </label>
+    <div id="catalog-preview" style="max-height:200px;overflow-y:auto;font-size:12px;color:#94a3b8;margin-top:8px"></div>
+  </div>
+</div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+let catalog = [];
+// catalog structure: {title, variant, barcode, images: [url1, url2, url3, ...]}
+
+function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){console.error('Save failed', e);}}
+
+function init(){
+  catalog = lsGet('pechat_catalog') || [];
+  updateCatalogInfo();
+  document.getElementById('scan-input').focus();
+}
+
+function parseCSVLine(line){
+  const result=[];let current='';let inQ=false;
+  for(let i=0;i<line.length;i++){
+    if(line[i]==='"')inQ=!inQ;
+    else if(line[i]===','&&!inQ){result.push(current);current='';}
+    else current+=line[i];
+  }
+  result.push(current);
+  return result;
+}
+
+function splitCSVRecords(text){
+  const records=[];
+  let current='';
+  let inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c==='"'){inQ=!inQ;current+=c;}
+    else if(c==='\n' && !inQ){if(current.trim())records.push(current);current='';}
+    else if(c==='\r' && !inQ){/* skip */}
+    else{current+=c;}
+  }
+  if(current.trim())records.push(current);
+  return records;
+}
+
+function loadCSV(e, append){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const lines=splitCSVRecords(ev.target.result);
+    if(lines.length<2){document.getElementById('csv-status').textContent='Грешка: файлът е празен.';return;}
+    const header=parseCSVLine(lines[0]).map(h=>h.trim().replace(/"/g,'').toLowerCase());
+    const titleIdx=header.findIndex(h=>h==='title');
+    const variantIdx=header.findIndex(h=>h.includes('option1 value')||h.includes('variant title'));
+    const barcodeIdx=header.findIndex(h=>h==='variant barcode'||h==='barcode');
+    const imgIdx=header.findIndex(h=>h==='image src');
+    const imgPosIdx=header.findIndex(h=>h==='image position');
+
+    if(titleIdx<0||barcodeIdx<0){
+      document.getElementById('csv-status').innerHTML='<span style="color:#fca5a5">Не намерих нужните колони.</span>';
+      return;
+    }
+
+    // Първо събираме всички снимки по handle (продукт)
+    const handleIdx = header.findIndex(h=>h==='handle');
+    const productImages = {}; // handle -> [images]
+    let currentHandle = '';
+    for(let i=1;i<lines.length;i++){
+      const cols=parseCSVLine(lines[i]);
+      if(cols.length<=barcodeIdx)continue;
+      const h = handleIdx>=0 ? (cols[handleIdx]||'').replace(/"/g,'').trim() : '';
+      if(h) currentHandle = h;
+      if(!currentHandle) continue;
+      const img = imgIdx>=0 ? (cols[imgIdx]||'').replace(/"/g,'').trim() : '';
+      if(img){
+        if(!productImages[currentHandle]) productImages[currentHandle] = [];
+        if(!productImages[currentHandle].includes(img)) productImages[currentHandle].push(img);
+      }
+    }
+
+    // Втори проход - изграждаме каталога
+    const items=[];
+    let currentTitle='';
+    let currentHandle2 = '';
+    for(let i=1;i<lines.length;i++){
+      const cols=parseCSVLine(lines[i]);
+      if(cols.length<=barcodeIdx)continue;
+      const title=(cols[titleIdx]||'').replace(/"/g,'').trim();
+      if(title)currentTitle=title;
+      const h = handleIdx>=0 ? (cols[handleIdx]||'').replace(/"/g,'').trim() : '';
+      if(h) currentHandle2 = h;
+      const variant=variantIdx>=0?(cols[variantIdx]||'').replace(/"/g,'').trim():'';
+      let barcode=(cols[barcodeIdx]||'').replace(/"/g,'').trim();
+      if(barcode.startsWith("'")) barcode = barcode.substring(1);
+      if(currentTitle && barcode){
+        const images = productImages[currentHandle2] || [];
+        items.push({title:currentTitle, variant, barcode, images});
+      }
+    }
+
+    if(append){
+      const existingBarcodes = new Set(catalog.map(c=>c.barcode));
+      let added = 0, dupes = 0;
+      items.forEach(item=>{
+        if(existingBarcodes.has(item.barcode)){dupes++;}
+        else{catalog.push(item);existingBarcodes.add(item.barcode);added++;}
+      });
+      lsSet('pechat_catalog', catalog);
+      updateCatalogInfo();
+      document.getElementById('csv-status').innerHTML='<span style="color:#4ade80">Добавени '+added+' нови варианта. Пропуснати '+dupes+' дублирани. Общо: '+catalog.length+' варианта.</span>';
+    } else {
+      catalog = items;
+      lsSet('pechat_catalog', catalog);
+      updateCatalogInfo();
+      document.getElementById('csv-status').innerHTML='<span style="color:#4ade80">Заредени '+items.length+' варианта от '+new Set(items.map(i=>i.title)).size+' продукта.</span>';
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function updateCatalogInfo(){
+  const count = catalog.length;
+  document.getElementById('catalog-count').textContent = count;
+  document.getElementById('hdr-info').textContent = count>0 ? count+' варианта в каталога' : 'Няма зареден каталог — виж Настройки';
+  const prev = document.getElementById('catalog-preview');
+  if(!count){prev.innerHTML='<div style="padding:8px 0;color:#64748b">Няма продукти</div>';return;}
+  prev.innerHTML = catalog.slice(0,50).map(c=>'<div style="padding:3px 0;border-bottom:1px solid #334155">'+c.title+' '+c.variant+' <span style="color:#64748b">'+c.barcode+' ('+(c.images?c.images.length:0)+' снимки)</span></div>').join('') + (catalog.length>50?'<div style="padding:4px 0;color:#64748b">...и още '+(catalog.length-50)+'</div>':'');
+}
+
+function clearCatalog(){
+  if(!confirm('Сигурен ли си? Ще изтрие целия каталог.'))return;
+  catalog=[];
+  lsSet('pechat_catalog', catalog);
+  updateCatalogInfo();
+  document.getElementById('csv-status').innerHTML='<span style="color:#94a3b8">Каталогът е изтрит.</span>';
+}
+
+function findByBarcode(b){return catalog.find(c=>c.barcode===b || c.barcode===b.trim());}
+
+let scanTimer = null;
+function onScanKey(e){
+  if(e.key==='Enter'){
+    if(scanTimer) clearTimeout(scanTimer);
+    const val=document.getElementById('scan-input').value.trim();
+    if(!val)return;
+    processBarcode(val);
+    document.getElementById('scan-input').value='';
+  }
+}
+
+function onScanInput(){
+  if(scanTimer) clearTimeout(scanTimer);
+  scanTimer = setTimeout(()=>{
+    const val=document.getElementById('scan-input').value.trim();
+    if(val.length >= 6){
+      processBarcode(val);
+      document.getElementById('scan-input').value='';
+    }
+  }, 300);
+}
+
+function processBarcode(barcode){
+  const item = findByBarcode(barcode);
+  if(!item){
+    document.getElementById('result').innerHTML = '<div class="error-box">Баркод "'+barcode+'" не е намерен в каталога.<br><br>Провери дали е зареден правилният CSV в Настройки.</div>';
+    return;
+  }
+
+  const images = item.images || [];
+  let imagesHtml = '';
+  if(images.length === 0){
+    imagesHtml = '<div class="empty">За този продукт няма качени снимки в CSV-то</div>';
+  } else {
+    imagesHtml = '<div class="image-grid">' + images.map((img,i)=>{
+      return '<div class="image-item"><img src="'+img+'" alt="Изглед '+(i+1)+'" onclick="openLightbox(\''+img.replace(/'/g,"\\\\'")+'\')" onerror="this.parentElement.innerHTML=\'<div class=empty>Снимката не може да се зареди</div>\'"><span class="zoom-hint">'+(i+1)+' / '+images.length+'</span></div>';
+    }).join('') + '</div>';
+  }
+
+  document.getElementById('result').innerHTML =
+    '<div class="product-view">' +
+      '<div class="product-name">' + item.title + '</div>' +
+      imagesHtml +
+    '</div>';
+
+  document.getElementById('scan-input').focus();
+}
+
+function openLightbox(src){
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('active');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('active');
+}
+
+function switchTab(name){
+  const names=['scan','setup'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='scan') setTimeout(()=>document.getElementById('scan-input').focus(),100);
+}
+
+init();
+</script>
+</body>
+</html>
